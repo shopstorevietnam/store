@@ -28,7 +28,7 @@ install_3proxy() {
 gen_3proxy() {
     cat <<EOF
 daemon
-maxconn 1000
+maxconn 2000
 nscache 65536
 nscache6 65536
 timeouts 1 5 30 60 180 1800 15 60
@@ -88,11 +88,8 @@ IP6=$(curl -6 -s icanhazip.com | cut -f1-4 -d':')
 
 echo "Internal ip = ${IP4}. Exteranl sub for ip6 = ${IP6}"
 
-echo "How many proxy do you want to create? Example 500"
-read COUNT
-
 FIRST_PORT=10000
-LAST_PORT=$(($FIRST_PORT + $COUNT))
+LAST_PORT=11000
 
 gen_data >$WORKDIR/data.txt
 gen_iptables >$WORKDIR/boot_iptables.sh
