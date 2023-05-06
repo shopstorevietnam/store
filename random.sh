@@ -28,7 +28,7 @@ install_3proxy() {
 gen_3proxy() {
     cat <<EOF
 daemon
-maxconn 1000
+maxconn 20000
 nscache 65536
 nscache6 65536
 timeouts 1 5 30 60 180 1800 15 60
@@ -38,17 +38,17 @@ stacksize 2621440
 flush
 auth strong
 
-users thuongtin:CL:thuongtin
-auth strong
-allow thuongtin
-$(awk -F "/" '{print "proxy -6 -n -a -p" $4 " -i" $3 " -e"$5"\n"}' ${WORKDATA})
-flush
+users $(awk -F "/" 'BEGIN{ORS="";} {print $1 ":CL:" $2 " "}' ${WORKDATA})
+$(awk -F "/" '{print "auth strong\n" \
+"allow " $1 "\n" \
+"proxy -6 -n -a -p" $4 " -i" $3 " -e"$5"\n" \
+"flush\n"}' ${WORKDATA})
 EOF
 }
 
 gen_data() {
     seq $FIRST_PORT $LAST_PORT | while read port; do
-        echo "thuongtin/thuongtin/$IP4/$port/$(gen64 $IP6)"
+        echo "$(random)/$(random)/$IP4/$port/$(gen64 $IP6)"
     done
 }
 
@@ -56,6 +56,23 @@ gen_iptables() {
     cat <<EOF
     $(awk -F "/" '{print "iptables -I INPUT -p tcp --dport " $4 "  -m state --state NEW -j ACCEPT"}' ${WORKDATA}) 
 EOF
+}
+
+gen_proxy_file_for_user() {
+    cat >proxy.txt <<EOF
+$(awk -F "/" '{print $3 ":" $4 ":" $1 ":" $2 }' ${WORKDATA})
+EOF
+}
+
+upload_proxy() {
+    local PASS=$(random)
+    zip --password $PASS proxy.zip proxy.txt
+    URL=$(curl -F "file=@proxy.zip" https://file.io)
+
+    echo "Proxy is ready! Format IP:PORT:LOGIN:PASS"
+    echo "Download zip archive from: ${URL}"
+    echo "Password: ${PASS}"
+
 }
 
 gen_ifconfig() {
@@ -79,7 +96,7 @@ IP6=$(curl -6 -s v6.ipv6-test.com/api/myip.php | cut -f1-4 -d':')
 echo "Internal ip = ${IP4}. Exteranl sub for ip6 = ${IP6}"
 
 FIRST_PORT=10000
-LAST_PORT=13500
+LAST_PORT=11000
 
 gen_data >$WORKDIR/data.txt
 gen_iptables >$WORKDIR/boot_iptables.sh
@@ -97,4 +114,6 @@ EOF
 
 bash /etc/rc.local
 
-echo "Proxy is ready! Format IP:PORT:LOGIN:PASS"
+gen_proxy_file_for_user
+
+upload_proxy
